@@ -1,13 +1,7 @@
-/ خادم بدون أي مكتبات خارجية — يتطلب Node 18 أو أحدث
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+const BOT_TOKEN = "9195323787:AAHV95AHKtcnAPExfE6PhvtWAUUqiydpJwk";
+const CHAT_ID = "6684879160";
 
-const BOT_TOKEN ="9195323787:AAHV95AHKtcnAPExfE6PhvtWAUUqiydpJwk";
-const CHAT_ID = "6684879160";// معرّف المحادثة التي تصلها الرسائل
-const PORT = process.env.PORT || 3000;
-
-const hits = new Map(); // حماية بسيطة من الإرسال المتكرر: 5 طلبات/دقيقة لكل IP
+const hits = new Map();
 function limited(ip) {
   const now = Date.now();
   const arr = (hits.get(ip) || []).filter(t => now - t < 60000);
@@ -16,47 +10,31 @@ function limited(ip) {
   return arr.length > 5;
 }
 
-function send(res, code, obj) {
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(obj));
-}
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'غير مسموح' });
 
-http.createServer((req, res) => {
-  if (req.method === 'GET' && (req.url === '/' || req.url === '/index.html')) {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(fs.readFileSync(path.join(__dirname, 'index.html')));
-  }
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0] || 'unknown';
+  if (limited(ip)) return res.status(429).json({ error: 'محاولات كثيرة، انتظر قليلاً' });
 
-  if (req.method === 'POST' && req.url === '/api/attendance') {
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    if (limited(ip)) return send(res, 429, { error: 'محاولات كثيرة، انتظر قليلاً' });
+  try {
+    const name = String((req.body || {}).name || '').trim().replace(/\s+/g, ' ');
+    if (name.length < 3 || name.length > 60) {
+      return res.status(400).json({ error: 'الاسم غير صالح' });
+    }
 
-    let body = '';
-    req.on('data', c => { body += c; if (body.length > 2000) req.destroy(); });
-    req.on('end', async () => {
-      try {
-        const name = String(JSON.parse(body).name || '').trim().replace(/\s+/g, ' ');
-        if (name.length < 3 || name.length > 60) return send(res, 400, { error: 'الاسم غير صالح' });
-
-        const time = new Date().toLocaleString('ar-DZ', {
-          timeZone: 'Africa/Algiers', dateStyle: 'full', timeStyle: 'short'
-        });
-        const text = `✅ حضور جديد\n👤 ${name}\n🕒 ${time}`;
-
-        const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: CHAT_ID, text })
-        });
-        if (!r.ok) return send(res, 502, { error: 'تعذّر الإرسال إلى تيليغرام' });
-        send(res, 200, { ok: true });
-      } catch (e) {
-        send(res, 400, { error: 'طلب غير صالح' });
-      }
+    const time = new Date().toLocaleString('ar-DZ', {
+      timeZone: 'Africa/Algiers', dateStyle: 'full', timeStyle: 'short'
     });
-    return;
-  }
+    const text = `✅ حضور جديد\n👤 ${name}\n🕒 ${time}`;
 
-  res.writeHead(404); res.end('Not found');
-}).listen(PORT, () => console.log('Running on port ' + PORT));
-          
+    const r = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: CHAT_ID, text })
+    });
+    if (!r.ok) return res.status(502).json({ error: 'تعذّر الإرسال إلى تيليغرام' });
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: 'طلب غير صالح' });
+  }
+};
