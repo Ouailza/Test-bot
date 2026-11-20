@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تسجيل الحضور</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#f1f5f9;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding:16px}
+  .card{background:#fff;width:100%;max-width:420px;padding:28px 24px;border-radius:16px;
+    box-shadow:0 8px 30px rgba(0,0,0,.08)}
+  h1{margin:0 0 6px;font-size:22px;color:#0f172a}
+  p{margin:0 0 20px;color:#64748b;font-size:15px}
+  input{width:100%;padding:14px;font-size:17px;border:1.5px solid #cbd5e1;border-radius:10px;outline:none}
+  input:focus{border-color:#2563eb}
+  button{width:100%;margin-top:14px;padding:14px;font-size:17px;font-weight:600;color:#fff;
+    background:#2563eb;border:0;border-radius:10px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:default}
+  #msg{margin-top:16px;text-align:center;font-size:15px;min-height:22px}
+  .ok{color:#15803d}.err{color:#b91c1c}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>تسجيل الحضور</h1>
+  <p>اكتب اسمك الكامل ثم اضغط تسجيل.</p>
+  <form id="f">
+    <input id="name" type="text" placeholder="الاسم واللقب" autocomplete="off" required minlength="3" maxlength="60">
+    <button id="btn" type="submit">تسجيل الحضور</button>
+  </form>
+  <div id="msg"></div>
+</div>
+<script>
+const f=document.getElementById('f'), msg=document.getElementById('msg'), btn=document.getElementById('btn');
+f.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name=document.getElementById('name').value.trim().replace(/\s+/g,' ');
+  if(name.length<3){msg.className='err';msg.textContent='اكتب اسمك الكامل';return;}
+  btn.disabled=true; msg.className=''; msg.textContent='جارٍ الإرسال...';
+  try{
+    const r=await fetch('/api/attendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'حدث خطأ');
+    msg.className='ok'; msg.textContent='✅ تم تسجيل حضورك يا '+name;
+    f.reset();
+  }catch(err){
+    msg.className='err'; msg.textContent='❌ '+err.message;
+  }finally{ btn.disabled=false; }
+});
+</script>
+</body>
+</html>
